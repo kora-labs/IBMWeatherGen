@@ -8,8 +8,9 @@ Scott Steinschneider and Casey Brown (2013)
 import numpy as np
 import pandas as pd
 from random import choices
-from utilities import waterday_range, variables_monthly_stats
-from constants_ import DATE, SAMPLE_DATE, STATE, STATE_PREV, WDAY
+from src.utilities import waterday_range, variables_monthly_stats
+from src.constants_ import DATE, SAMPLE_DATE, STATE, STATE_PREV, WDAY
+
 
 class LagOne:
 

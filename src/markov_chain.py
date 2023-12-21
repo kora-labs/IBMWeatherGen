@@ -2,7 +2,8 @@ import pandas as pd
 import numpy as np
 from pomegranate import MarkovChain, DiscreteDistribution, ConditionalProbabilityTable
 from typing import Dict, Any, Optional
-from constants_ import DATE, PRECIPITATION, SAMPLE_DATE, STATE, STATE_PREV, WDAY
+
+from src.constants_ import DATE, PRECIPITATION, SAMPLE_DATE, STATE, STATE_PREV, WDAY
 
 MC_PER_YEAR = 12
 

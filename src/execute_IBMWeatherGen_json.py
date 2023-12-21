@@ -4,12 +4,13 @@ from IBMWeatherGen import IBMWeatherGen
 import json 
 #import geopandas as gpd
 import pandas as pd
+import pathlib
 
 DEFAULT_WET_EXTREME_THRESHOLD = 0.999
 
 if __name__ == "__main__":
-
-    with open('ibmwg-input.json', 'r') as jsn:
+    print(pathlib.Path(__file__).parent.joinpath('ibmwg-input.json'))
+    with open(pathlib.Path(__file__).parent.joinpath('ibmwg-input.json'), 'r') as jsn:
         config = json.load(jsn)
     
     path_in = str(config["PATH_FILE_IN"])

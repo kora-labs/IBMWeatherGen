@@ -2,7 +2,7 @@ from typing import List
 from random import choices
 import pandas as pd
 import numpy as np
-from constants_ import PRECIPITATION, DATE, STATE, T_MAX, WDAY, T_MIN
+from src.constants_ import PRECIPITATION, DATE, STATE, T_MAX, WDAY, T_MIN
 
 DEFAULT_K_VALUE = 100
 DEFAULT_DRY_WET_THRESHOLD = 0.0001

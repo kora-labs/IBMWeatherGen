@@ -10,7 +10,9 @@ import numpy as np
 from scipy.stats import truncnorm
 from math import log
 from typing import List, Dict
-from constants_ import DATE, PRECIPITATION, SAMPLE_DATE
+
+from src.constants_ import DATE, PRECIPITATION, SAMPLE_DATE
+
 
 def waterday_range(day: pd.Timedelta, window: int)->List[int]: 
     
