@@ -11,7 +11,7 @@ from scipy.stats import truncnorm
 from math import log
 from typing import List, Dict
 
-from src.constants_ import DATE, PRECIPITATION, SAMPLE_DATE
+from IBMWeatherGen.constants_ import DATE, PRECIPITATION, SAMPLE_DATE
 
 
 def waterday_range(day: pd.Timedelta, window: int)->List[int]: 
@@ -94,8 +94,9 @@ def multisite_disaggregation(simulation_dates, weather_data_df, frequency)->pd.D
 
     return df
 
+
 #TODO: ADJUST RANGE OF PREDICTED
-def adjust_annual_precipitation(df, predicted)->pd.DataFrame:
+def adjust_annual_precipitation(df, predicted) -> pd.DataFrame:
 
     df_annual = df.groupby(df[DATE].dt.date)[[PRECIPITATION]].mean().reset_index()
     
@@ -108,10 +109,10 @@ def adjust_annual_precipitation(df, predicted)->pd.DataFrame:
         myclip_a = predicted['mean_ci_lower'].values[0]
         myclip_b = predicted['mean_ci_upper'].values[0]
         my_mean = predicted['mean'].values[0]
-        my_std = (myclip_b - myclip_a)/(2*np.sqrt(2*log(2)))
+        my_std = (myclip_b - myclip_a)/(2 * np.sqrt(2*log(2)))
 
         a, b = (myclip_a - my_mean) / my_std, (myclip_b - my_mean) / my_std
-        final_prcp = truncnorm.rvs(a, b, loc = my_mean, scale = my_std, size=1)[0]
+        final_prcp = truncnorm.rvs(a, b, loc=my_mean, scale=my_std, size=1)[0]
         
         RATIO = final_prcp/df_annual
         #df = df.assign( precipitation_calibrated = df[PRECIPITATION]*RATIO)

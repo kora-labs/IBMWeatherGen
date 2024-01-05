@@ -3,7 +3,7 @@ import numpy as np
 from pomegranate import MarkovChain, DiscreteDistribution, ConditionalProbabilityTable
 from typing import Dict, Any, Optional
 
-from src.constants_ import DATE, PRECIPITATION, SAMPLE_DATE, STATE, STATE_PREV, WDAY
+from IBMWeatherGen.constants_ import DATE, PRECIPITATION, SAMPLE_DATE, STATE, STATE_PREV, WDAY
 
 MC_PER_YEAR = 12
 

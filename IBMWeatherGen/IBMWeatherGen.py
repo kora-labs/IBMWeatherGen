@@ -7,12 +7,12 @@ import pandas as pd
 from random import sample
 import itertools
 
-from src.bootstrap_sampling import BootstrapSampling
-from src.markov_chain import FirstOrderMarkovChain
-from src.lag_one import LagOne
-from src.annual_forecaster import autoArimaFourierFeatures, Utils #,naiveARIMA, autoArima, autoArimaDeepSearch, autoArimaBoxCoxEndogTransformer, Utils
-from src.utilities import multisite_disaggregation, adjust_annual_precipitation
-from src.constants_ import PRECIPITATION, DATE, LONGITUDE, LATITUDE, SAMPLE_DATE, T_MIN, T_MAX
+from IBMWeatherGen.bootstrap_sampling import BootstrapSampling
+from IBMWeatherGen.markov_chain import FirstOrderMarkovChain
+from IBMWeatherGen.lag_one import LagOne
+from IBMWeatherGen.annual_forecaster import autoArimaFourierFeatures, Utils
+from IBMWeatherGen.utilities import multisite_disaggregation, adjust_annual_precipitation
+from IBMWeatherGen.constants_ import PRECIPITATION, DATE, LONGITUDE, LATITUDE, SAMPLE_DATE, T_MIN, T_MAX
 
 
 class IBMWeatherGen:
@@ -65,22 +65,22 @@ class IBMWeatherGen:
         Original names of each weather variables to be used in the new timeseries.
 
     weather_variables_mean : list[str]
-        Weathe variable names after any needed caalculation (e.g mean).
+        Weather variable names after any needed calculation (e.g mean).
 
     """
 
     def __init__(self, 
                 file_in_path, 
-                years, 
-                #file_out_path, 
+                years,
                 wet_extreme_quantile_threshold: Optional[float]=DEFAULT_WET_EXTREME_THRESHOLD, 
-                nsimulations=1):
+                nsimulations=1,
+                precipitation_column=PRECIPITATION):
 
-        #self.file_out_path = file_out_path
         self.number_of_simulations = nsimulations
         self.file_in_path = file_in_path
         self.simulation_year_list = years
-    
+        self.precipitation_column = precipitation_column
+
         self.raw_data = None 
         self.daily_data = None 
         self.annual_data = None
@@ -122,21 +122,27 @@ class IBMWeatherGen:
 
     def compute_daily_variables(self)->pd.DataFrame:
 
-        self.raw_data = pd.read_csv(self.file_in_path, parse_dates=[DATE]).dropna()#.reset_index()
+        self.raw_data = pd.read_csv(self.file_in_path, parse_dates=[DATE]).dropna()
 
         if (T_MIN and T_MAX in self.raw_data.columns):
             self.raw_data = self.raw_data.assign(temperature = (self.raw_data[T_MIN] + self.raw_data[T_MAX])/2)
-            self.weather_variables_mean = [element for element in list(self.raw_data.columns) if element not in [DATE, LONGITUDE, LATITUDE, T_MIN, T_MAX]]
+            self.weather_variables_mean = [element for element in list(self.raw_data.columns)
+                                           if element not in [DATE, LONGITUDE, LATITUDE, T_MIN, T_MAX]]
         
-        self.weather_variables = [weather_var for weather_var in self.raw_data.columns if weather_var not in [DATE, LONGITUDE, LATITUDE]]
+        self.weather_variables = [weather_var for weather_var in self.raw_data.columns
+                                  if weather_var not in [DATE, LONGITUDE, LATITUDE]]
         
         self.frequency = self.raw_data[DATE].diff().min().seconds//60
 
         #TODO: FOR N_SIMULATIONS == 1 --> AT THE CENTER?
-        if ((max(self.raw_data.Latitude) - min(self.raw_data.Latitude)) > 1 or (max(self.raw_data.Longitude) - min(self.raw_data.Longitude)) > 1):
+        if ((max(self.raw_data.Latitude) - min(self.raw_data.Latitude)) > 1
+                or (max(self.raw_data.Longitude) - min(self.raw_data.Longitude)) > 1):
             
             selected_bbox = self.select_bbox(self.raw_data)
-            self.sub_raw_data = self.raw_data[(self.raw_data.Longitude <= selected_bbox[1]) & (self.raw_data.Longitude >= selected_bbox[0]) & (self.raw_data.Latitude >= selected_bbox[2]) & (self.raw_data.Latitude <= selected_bbox[3])]
+            self.sub_raw_data = self.raw_data[(self.raw_data.Longitude <= selected_bbox[1]) &
+                                              (self.raw_data.Longitude >= selected_bbox[0]) &
+                                              (self.raw_data.Latitude >= selected_bbox[2]) &
+                                              (self.raw_data.Latitude <= selected_bbox[3])]
             
             self.daily_data = self.generate_daily(self.frequency,self.sub_raw_data)
             
@@ -150,35 +156,12 @@ class IBMWeatherGen:
         
         self.daily_data = self.compute_daily_variables()
 
-        self.annual_data = self.daily_data.groupby(self.daily_data[DATE].dt.year)[PRECIPITATION].sum()
+        self.annual_data = self.daily_data.groupby(self.daily_data[DATE].dt.year)[self.precipitation_column].sum()
         
         self.annual_data.index = pd.period_range(str(self.annual_data.index[0]), 
                                                  str(self.annual_data.index[-1]), freq='Y')
 
         return self.annual_data
-    
-    # def generate_forecasted_values(self):
-        
-    #     self.annual_data = self.compute_annual_prcp()
-        
-    #     #l_m = [2]
-    #     l_m = range(2, len(self.annual_data.index), 3)
-    #     list_autoArimaFourierFeatures = []
-
-    #     for m in l_m:
-    #         for k in range(1,(int(m/2)+1)):
-    #             list_autoArimaFourierFeatures.append(autoArimaFourierFeatures(k=k,m=m))
-
-    #     list_models = [#naiveARIMA(p=1, d=0, q=1),
-    #                 #autoArima(),
-    #                 #autoArimaDeepSearch(),
-    #                 #autoArimaBoxCoxEndogTransformer()  
-    #                 ]
-
-    #     #list_models = list_models + list_autoArimaFourierFeatures
-    #     list_models = list_autoArimaFourierFeatures
-
-    #     return Utils.model_selection(list_models, self.annual_data)  
     
     def generate_forecasted_values(self):
         
@@ -188,14 +171,13 @@ class IBMWeatherGen:
 
         l_m = list(range(2, len(self.annual_data.index), 3))
         l_m = sample(list(l_m), k=4)
-        comb_list = [list(itertools.product( [m], list( range(1,(int(m/2)+1)))) ) for m in list(l_m)]
+        comb_list = [list(itertools.product([m], list(range(1, (int(m/2)+1))))) for m in list(l_m)]
         comb_list = list(itertools.chain(*comb_list))
 
-        for m,k in comb_list:
-            list_autoArimaFourierFeatures.append(autoArimaFourierFeatures(k=k,m=m))
+        for m, k in comb_list:
+            list_autoArimaFourierFeatures.append(autoArimaFourierFeatures(m=m, k=k))
         
         list_models = list_autoArimaFourierFeatures
-
         return Utils.model_selection(list_models, self.annual_data) 
     
     def adjust_prediction(self, prediction) -> pd.DataFrame:
@@ -267,10 +249,9 @@ class IBMWeatherGen:
 
                 df_simulation = adjust_annual_precipitation(df_simulation, predicted)
                 
-                df_simulation = df_simulation.assign( n_simu = num_simulation+1 )
+                df_simulation = df_simulation.assign(n_simu=num_simulation+1)
                 simulations.append(df_simulation.drop([SAMPLE_DATE], axis=1).set_index(DATE)) #for tests, consider the 'sample_date'
 
         dfnl = pd.concat(simulations)
-
 
         return dfnl

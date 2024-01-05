@@ -13,6 +13,32 @@ from pmdarima import preprocessing as ppc
 from pmdarima import arima
 from pmdarima.preprocessing import BoxCoxEndogTransformer
 
+
+from pmdarima.preprocessing.endog.base import BaseEndogTransformer
+from sklearn.preprocessing import StandardScaler
+
+
+class CustomScaler(BaseEndogTransformer):
+    def __init__(self):
+        super().__init__()
+        self.scaler = StandardScaler()
+
+    def fit(self, X, y=None):
+        self.scaler.fit(X.values.reshape(-1, 1), y)
+        return self
+
+    def transform(self, X, y=None):
+        Xt = self.scaler.transform(X.values.reshape(-1, 1))
+        return Xt, y
+
+    def inverse_transform(self, Xt, y):
+        Xt = np.array(Xt)
+        original_shape = Xt.shape
+        if Xt.ndim == 1:
+            Xt = Xt.reshape(-1, 1)
+        return self.scaler.inverse_transform(Xt).reshape(original_shape), y
+
+
 class Forecaster():
     """
     The Forecaster defines the interface of interest to clients.
@@ -47,23 +73,26 @@ class Forecaster():
         in_sample_preds, in_sample_confint = fitted_model.predict_in_sample(X=None, return_conf_int=True)
         out_sample_preds, out_sample_confint = fitted_model.predict(n_periods=100, return_conf_int=True)
 
-        index = data.index.to_series().astype(str)
+        in_sample_index = data.index.to_series().astype(str)
 
-        df_in = pd.DataFrame(index=index, data={'mean': in_sample_preds,
-                                                'mean_ci_lower': in_sample_confint[:, 0],
-                                                'mean_ci_upper': in_sample_confint[:, 1]})
+        df_in = pd.DataFrame(index=in_sample_index,
+                             data={'mean': np.array(in_sample_preds),
+                                   'mean_ci_lower': in_sample_confint[:, 0],
+                                   'mean_ci_upper': in_sample_confint[:, 1]})
 
-        index = list(range(int(index[-1]), int(index[-1])+101))
-        index = index[1:]
-        index = [str(e) for e in index]
+        out_sample_index = list(range(int(in_sample_index[-1]), int(in_sample_index[-1]) + 101))
+        out_sample_index = out_sample_index[1:]
+        out_sample_index = [str(e) for e in out_sample_index]
 
-        df_out = pd.DataFrame(index=index, data={'mean': out_sample_preds,
-                                                 'mean_ci_lower': out_sample_confint[:, 0],
-                                                 'mean_ci_upper': out_sample_confint[:, 1]})
+        df_out = pd.DataFrame(index=out_sample_index,
+                              data={'mean': np.array(out_sample_preds),
+                                    'mean_ci_lower': out_sample_confint[:, 0],
+                                    'mean_ci_upper': out_sample_confint[:, 1]})
 
         df_preds = pd.concat([df_in, df_out])
 
         return df_preds[df_preds.index == year]
+
 
 class Model(ABC):
     """
@@ -93,6 +122,7 @@ class Model(ABC):
     def summary(self):
         pass
 
+
 class naiveARIMA(Model):
 
     def __init__(self, p: int = 1, d: int = 1, q: int = 1):
@@ -117,7 +147,10 @@ class naiveARIMA(Model):
 
     def fit(self, data: pd.Series):
         self.__data = data
-        model = pm.ARIMA( order=(self.__p, self.__d, self.__q ),seasonal_order=(0, 1, 1, 12),suppress_warnings=True)
+        model = pm.ARIMA(order=(self.__p, self.__d, self.__q ),
+                         seasonal_order=(0, 1, 1, 12),
+                         suppress_warnings=False,
+                         )
         self.__fitted_model = model.fit(data)
         return self.__fitted_model
 
@@ -125,29 +158,11 @@ class naiveARIMA(Model):
         Utils.plot_annual_forecaster(self)
 
     def predict_year(self, year):
-
-        # in_sample_preds, in_sample_confint = self.__fitted_model.predict_in_sample(X=None, return_conf_int=True)
-        # out_sample_preds, out_sample_confint = self.__fitted_model.predict(n_periods=100, return_conf_int=True)
-        #
-        # df_in = pd.DataFrame(index=self.__data.index(), data={'mean': in_sample_preds,
-        #                                                       'mean_ci_lower': in_sample_confint[:, 0],
-        #                                                       'mean_ci_upper': in_sample_confint[:, 1]})
-        #
-        # index = pd.date_range(start=self.__data.index[-1].to_timestamp(), periods=101, freq='Y')
-        # index = index[1:]
-        #
-        # df_out = pd.DataFrame(index=index, data={'mean': out_sample_preds,
-        #                                          'mean_ci_lower': out_sample_confint[:, 0],
-        #                                          'mean_ci_upper': out_sample_confint[:, 1]})
-        #
-        # df_preds = pd.concat([df_in, df_out])
-        #
-        # return df[df_preds.index == year]
         pass
 
     def summary(self):
-        #print(self.__fitted_model.summary())
         pass
+
 
 class autoArimaFourierFeatures(Model):
 
@@ -156,7 +171,7 @@ class autoArimaFourierFeatures(Model):
         self.__m = m
         self.__k = k
         self.__data = []
-        self.__name = 'auto ARIMA Fourier features k '+str(k) + 'm' +str(m)
+        self.__name = 'auto ARIMA Fourier features k='+str(k) + ', m=' +str(m)
 
     @property
     def name(self):
@@ -175,34 +190,25 @@ class autoArimaFourierFeatures(Model):
 
         # -----------
         pipe = pipeline.Pipeline([
+            ("scaling", CustomScaler()),
             ("fourier", ppc.FourierFeaturizer(self.__m, self.__k)),
-            ("arima", arima.AutoARIMA(stepwise=True, #trace=1, 
-                                      error_action="ignore",
+            ("arima", arima.AutoARIMA(stepwise=True,
+                                      trace=1,
+                                      error_action="trace",
                                       seasonal=False,  # because we use Fourier
-                                      suppress_warnings=True))
+                                      suppress_warnings=False))
         ])
 
         self.__fitted_model = pipe.fit(data)
 
-        # -----------
-        # self.__fitted_model = pm.auto_arima(data, error_action='ignore', trace=True,suppress_warnings=True, maxiter=5, seasonal=True, m=12)
-
     def predict_year(self, year) -> pd.DataFrame:
-        # """
-        # it must merge in sample predictions and out sample prediction (forecasting)
-        # """
-        # preds, conf_int = self.__fitted_model.predict(n_periods=10, return_conf_int=True)
-        # print('autoarima predictions \n')
-        # print(preds, conf_int)
         pass
 
     def plot(self):
         Utils.plot_annual_forecaster(self)
 
     def summary(self):
-        #print(self.__fitted_model.summary())
         pass
-
 
 
 class autoArimaBoxCoxEndogTransformer(Model):
@@ -241,24 +247,15 @@ class autoArimaBoxCoxEndogTransformer(Model):
 
         self.__fitted_model = pipe.fit(data)
 
-        # -----------
-        # self.__fitted_model = pm.auto_arima(data, error_action='ignore', trace=True,suppress_warnings=True, maxiter=5, seasonal=True, m=12)
-
     def predict_year(self, year) -> pd.DataFrame:
-        # """
-        # it must merge in sample predictions and out sample prediction (forecasting)
-        # """
-        # preds, conf_int = self.__fitted_model.predict(n_periods=10, return_conf_int=True)
-        # print('autoarima predictions \n')
-        # print(preds, conf_int)
         pass
 
     def plot(self):
         Utils.plot_annual_forecaster(self)
 
     def summary(self):
-        #print(self.__fitted_model.summary())
         pass
+
 
 class autoArima(Model):
 
@@ -282,7 +279,6 @@ class autoArima(Model):
     def fit(self, data: pd.Series):
         self.__data = data
 
-        # -----------
         self.__fitted_model = pm.auto_arima(data,
                                             start_p = 2, # as in R code
                                             start_q=2, # as in R code
@@ -299,22 +295,15 @@ class autoArima(Model):
                                             #max_D=10,
                                             error_action='ignore')
 
-
     def predict_year(self, year) -> pd.DataFrame:
-        # """
-        # it must merge in sample predictions and out sample prediction (forecasting)
-        # """
-        # preds, conf_int = self.__fitted_model.predict(n_periods=10, return_conf_int=True)
-        # print('autoarima predictions \n')
-        # print(preds, conf_int)
         pass
 
     def plot(self):
         Utils.plot_annual_forecaster(self)
 
     def summary(self):
-        #print(self.__fitted_model.summary())
         pass
+
 
 class autoArimaDeepSearch(Model):
 
@@ -339,28 +328,21 @@ class autoArimaDeepSearch(Model):
         self.__data = data
 
         # -----------
-        self.__fitted_model = pm.auto_arima(data,start_p=1, start_q=1, d=0, start_P=1, start_Q=1,
-                     max_p=5, max_q=5, max_P=5, max_Q=5, seasonal=True, out_of_sample_size=1,
-                     stepwise=True, suppress_warnings=True, D=10, max_D=10,
-                     error_action='ignore', m=1, #trace=True
-                                            )
-
+        self.__fitted_model = pm.auto_arima(data,
+                                            start_p=1,
+                                            start_q=1, d=0, start_P=1, start_Q=1, max_p=5, max_q=5, max_P=5, max_Q=5,
+                                            seasonal=True, out_of_sample_size=1, stepwise=True, suppress_warnings=True,
+                                            D=10, max_D=10, error_action='trace', m=1)
 
     def predict_year(self, year) -> pd.DataFrame:
-        # """
-        # it must merge in sample predictions and out sample prediction (forecasting)
-        # """
-        # preds, conf_int = self.__fitted_model.predict(n_periods=10, return_conf_int=True)
-        # print('autoarima predictions \n')
-        # print(preds, conf_int)
         pass
 
     def plot(self):
         Utils.plot_annual_forecaster(self)
 
     def summary(self):
-        #print(self.__fitted_model.summary())
         pass
+
 
 class Utils():
     def __init__(self):
@@ -435,10 +417,6 @@ class Utils():
 
             list_errors.append(np.average(scores))
 
-        #print(list_errors)
-        #print("Forecasters : {}".format([e.name for e in list_fitted_models]))
         better_index = np.nanargmin(list_errors)
-        #print("Lowest average SMAPE: {} (model {})".format(list_errors[better_index], list_fitted_models[better_index].name))
-
         annualForecaster.model = list_fitted_models[better_index]
         return annualForecaster
