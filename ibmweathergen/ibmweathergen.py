@@ -75,12 +75,14 @@ class IBMWeatherGen:
                  wet_extreme_quantile_threshold: Optional[float]=DEFAULT_WET_EXTREME_THRESHOLD,
                  nsimulations=1,
                  precipitation_column=PRECIPITATION,
+                 date_column=DATE,
                  raw_data=None):
 
         self.number_of_simulations = nsimulations
         self.file_in_path = file_in_path
         self.simulation_year_list = years
         self.precipitation_column = precipitation_column
+        self.date_column = date_column
 
         self.raw_data = raw_data
         self.daily_data = None 
@@ -99,7 +101,7 @@ class IBMWeatherGen:
 
     def read_data(self):
         if self.raw_data is None:
-            self.raw_data = pd.read_csv(self.file_in_path, parse_dates=[DATE]).dropna()
+            self.raw_data = pd.read_csv(self.file_in_path, parse_dates=[self.date_column]).dropna()
 
     def select_bbox(self, df):
         
@@ -115,10 +117,10 @@ class IBMWeatherGen:
     def generate_daily(self, frequency, df):
         
         if frequency!= 0:
-            self.daily_data = df.groupby(by=[df[DATE].dt.date, LONGITUDE, LATITUDE]).sum()*(frequency/60)
+            self.daily_data = df.groupby(by=[df[self.date_column].dt.date, LONGITUDE, LATITUDE]).sum()*(frequency/60)
             self.daily_data.reset_index(inplace=True)
-            self.daily_data[DATE] = pd.to_datetime(self.daily_data[DATE])
-            self.raw_data['date_'] = self.raw_data[DATE].dt.date
+            self.daily_data[self.date_column] = pd.to_datetime(self.daily_data[self.date_column])
+            self.raw_data['date_'] = self.raw_data[self.date_column].dt.date
 
         else:
             self.daily_data = df.copy()
@@ -132,12 +134,12 @@ class IBMWeatherGen:
         if (T_MIN and T_MAX in self.raw_data.columns):
             self.raw_data = self.raw_data.assign(temperature = (self.raw_data[T_MIN] + self.raw_data[T_MAX])/2)
             self.weather_variables_mean = [element for element in list(self.raw_data.columns)
-                                           if element not in [DATE, LONGITUDE, LATITUDE, T_MIN, T_MAX]]
+                                           if element not in [self.date_column, LONGITUDE, LATITUDE, T_MIN, T_MAX]]
         
         self.weather_variables = [weather_var for weather_var in self.raw_data.columns
-                                  if weather_var not in [DATE, LONGITUDE, LATITUDE]]
+                                  if weather_var not in [self.date_column, LONGITUDE, LATITUDE]]
         
-        self.frequency = self.raw_data[DATE].diff().min().seconds//60
+        self.frequency = self.raw_data[self.date_column].diff().min().seconds//60
 
         #TODO: FOR N_SIMULATIONS == 1 --> AT THE CENTER?
         if ((max(self.raw_data.Latitude) - min(self.raw_data.Latitude)) > 1
@@ -154,14 +156,15 @@ class IBMWeatherGen:
         else:
             self.daily_data = self.generate_daily(self.frequency,self.raw_data)
 
-        return self.daily_data.groupby(self.daily_data[DATE])[self.weather_variables].mean().reset_index()
+        return self.daily_data.groupby(self.daily_data[self.date_column])[self.weather_variables].mean().reset_index()
     
     
     def compute_annual_prcp(self)->pd.DataFrame:
         
         self.daily_data = self.compute_daily_variables()
 
-        self.annual_data = self.daily_data.groupby(self.daily_data[DATE].dt.year)[self.precipitation_column].sum()
+        self.annual_data = self.daily_data.groupby(self.daily_data[self.date_column].dt.year)[
+            self.precipitation_column].sum()
         
         self.annual_data.index = pd.period_range(str(self.annual_data.index[0]), 
                                                  str(self.annual_data.index[-1]), freq='Y')
@@ -255,7 +258,7 @@ class IBMWeatherGen:
                 df_simulation = adjust_annual_precipitation(df_simulation, predicted)
                 
                 df_simulation = df_simulation.assign(n_simu=num_simulation+1)
-                simulations.append(df_simulation.drop([SAMPLE_DATE], axis=1).set_index(DATE)) #for tests, consider the 'sample_date'
+                simulations.append(df_simulation.drop([SAMPLE_DATE], axis=1).set_index(self.date_column)) #for tests, consider the 'sample_date'
 
         dfnl = pd.concat(simulations)
 
