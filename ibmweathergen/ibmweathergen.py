@@ -70,18 +70,19 @@ class IBMWeatherGen:
     """
 
     def __init__(self, 
-                file_in_path, 
-                years,
-                wet_extreme_quantile_threshold: Optional[float]=DEFAULT_WET_EXTREME_THRESHOLD, 
-                nsimulations=1,
-                precipitation_column=PRECIPITATION):
+                 file_in_path,
+                 years,
+                 wet_extreme_quantile_threshold: Optional[float]=DEFAULT_WET_EXTREME_THRESHOLD,
+                 nsimulations=1,
+                 precipitation_column=PRECIPITATION,
+                 raw_data=None):
 
         self.number_of_simulations = nsimulations
         self.file_in_path = file_in_path
         self.simulation_year_list = years
         self.precipitation_column = precipitation_column
 
-        self.raw_data = None 
+        self.raw_data = raw_data
         self.daily_data = None 
         self.annual_data = None
         self.frequency = None
@@ -95,6 +96,10 @@ class IBMWeatherGen:
     def closest(self, lst, K):
     
         return lst[min(range(len(lst)), key = lambda i: abs(lst[i]-K))]
+
+    def read_data(self):
+        if self.raw_data is None:
+            self.raw_data = pd.read_csv(self.file_in_path, parse_dates=[DATE]).dropna()
 
     def select_bbox(self, df):
         
@@ -122,7 +127,7 @@ class IBMWeatherGen:
 
     def compute_daily_variables(self)->pd.DataFrame:
 
-        self.raw_data = pd.read_csv(self.file_in_path, parse_dates=[DATE]).dropna()
+        self.read_data()
 
         if (T_MIN and T_MAX in self.raw_data.columns):
             self.raw_data = self.raw_data.assign(temperature = (self.raw_data[T_MIN] + self.raw_data[T_MAX])/2)
