@@ -7,12 +7,12 @@ import pandas as pd
 from random import sample
 import itertools
 
-from IBMWeatherGen.bootstrap_sampling import BootstrapSampling
-from IBMWeatherGen.markov_chain import FirstOrderMarkovChain
-from IBMWeatherGen.lag_one import LagOne
-from IBMWeatherGen.annual_forecaster import autoArimaFourierFeatures, Utils
-from IBMWeatherGen.utilities import multisite_disaggregation, adjust_annual_precipitation
-from IBMWeatherGen.constants_ import PRECIPITATION, DATE, LONGITUDE, LATITUDE, SAMPLE_DATE, T_MIN, T_MAX
+from ibmweathergen.bootstrap_sampling import BootstrapSampling
+from ibmweathergen.markov_chain import FirstOrderMarkovChain
+from ibmweathergen.lag_one import LagOne
+from ibmweathergen.annual_forecaster import autoArimaFourierFeatures, Utils
+from ibmweathergen.utilities import multisite_disaggregation, adjust_annual_precipitation
+from ibmweathergen.constants_ import PRECIPITATION, DATE, LONGITUDE, LATITUDE, SAMPLE_DATE, T_MIN, T_MAX
 
 
 class IBMWeatherGen:
