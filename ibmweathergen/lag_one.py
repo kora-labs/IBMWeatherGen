@@ -128,7 +128,7 @@ class LagOne:
         #----
         k = np.round( np.sqrt(len(current)) )
 
-        stats = variables_monthly_stats(self.training_data, self.weather_mean)
+        stats = variables_monthly_stats(self.training_data, self.weather_mean, self.date_column)
 
         dstc = 0
         for weather in self.weather_mean:

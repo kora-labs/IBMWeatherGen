@@ -45,7 +45,8 @@ def waterday_range(day: pd.Timedelta, window: int)->List[int]:
     return rng 
 
 
-def variables_monthly_stats(df: pd.DataFrame, weather_variables: list) -> Dict:
+def variables_monthly_stats(df: pd.DataFrame, weather_variables: list,
+                            date_column=DATE) -> Dict:
     
     """ Compute the monthly mean and the standard deviation for each weather variable.
         
@@ -66,7 +67,7 @@ def variables_monthly_stats(df: pd.DataFrame, weather_variables: list) -> Dict:
     stats_list=[]
     for month in range(1,13,1):
         stats = {}
-        df_month = df[df[DATE].dt.month == month]
+        df_month = df[df[date_column].dt.month == month]
         for i in weather_variables:
             stats.update({'month': month, f'{i}_sd': df_month[i].std(), f'{i}_mean': df_month[i].mean()})
         stats_list.append(stats)
