@@ -263,7 +263,8 @@ class IBMWeatherGen:
                 df_simulation = multisite_disaggregation(df_simulation, self.raw_data, self.frequency,
                                                          date_column=self.date_column)
 
-                df_simulation = adjust_annual_precipitation(df_simulation, predicted)
+                df_simulation = adjust_annual_precipitation(df_simulation, predicted,
+                                                            date_column=self.date_column)
                 
                 df_simulation = df_simulation.assign(n_simu=num_simulation+1)
                 simulations.append(df_simulation.drop([SAMPLE_DATE], axis=1).set_index(self.date_column)) #for tests, consider the 'sample_date'
