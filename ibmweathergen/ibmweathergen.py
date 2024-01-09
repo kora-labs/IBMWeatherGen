@@ -244,13 +244,19 @@ class IBMWeatherGen:
                     # print(predicted.index)
                     # print(predicted)
                 
-                bootstrap = BootstrapSampling(predicted, self.annual_data.to_frame(), self.daily_data, self.wet_extreme_quantile_threshold)
+                bootstrap = BootstrapSampling(predicted, self.annual_data.to_frame(), self.daily_data,
+                                              self.wet_extreme_quantile_threshold,
+                                              precipitation_column=self.precipitation_column,
+                                              date_column=self.date_column)
                 training_data, thresh = bootstrap.get_labels_states()
 
-                prcp_occurence = FirstOrderMarkovChain(training_data, simulation_year, self.weather_variables)
+                prcp_occurence = FirstOrderMarkovChain(training_data, simulation_year, self.weather_variables,
+                                                       precipitation_column=self.precipitation_column,
+                                                       date_column=self.date_column)
                 df_simulation, thresh_markov_chain = prcp_occurence.simulate_state_sequence()
                 
-                single_timeseries = LagOne(training_data, df_simulation, self.weather_variables, self.weather_variables_mean)
+                single_timeseries = LagOne(training_data, df_simulation, self.weather_variables,
+                                           self.weather_variables_mean)
                 df_simulation = single_timeseries.get_series()
 
                 df_simulation = multisite_disaggregation(df_simulation, self.raw_data, self.frequency)

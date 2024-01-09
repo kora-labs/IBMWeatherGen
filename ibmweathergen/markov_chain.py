@@ -44,11 +44,16 @@ class FirstOrderMarkovChain:
     def __init__(self,
                  training_data: pd.DataFrame = None,
                  simulation_year: int = 2000,
-                 weather_variables: Optional[list] = [PRECIPITATION]) -> None:
+                 weather_variables: Optional[list] = [PRECIPITATION],
+                 precipitation_column=PRECIPITATION,
+                 date_column=DATE
+                 ) -> None:
         self.transition_matrix = list()
         self.transition_prob = list()
         self.training_data = training_data
         self.simulation_year = simulation_year
+        self.precipitation_column = precipitation_column
+        self.date_column = date_column
         self.columns_names = [SAMPLE_DATE, STATE, STATE_PREV]
 
         self.columns_names.extend(weather_variables)
@@ -67,7 +72,7 @@ class FirstOrderMarkovChain:
 
         wday = [date.dayofyear for date in dates]
 
-        df = pd.concat([pd.DataFrame({DATE: dates, WDAY: wday}),
+        df = pd.concat([pd.DataFrame({self.date_column: dates, WDAY: wday}),
                         pd.DataFrame(np.nan, index=np.arange(0, len(dates)), columns=self.columns_names)], axis=1)
 
         return df
@@ -111,7 +116,7 @@ class FirstOrderMarkovChain:
         seq_monthly = list()
         mchain = list()
         for month in range(1, MC_PER_YEAR + 1, 1):
-            df_month = self.training_data[self.training_data[DATE].dt.month == month]
+            df_month = self.training_data[self.training_data[self.date_column].dt.month == month]
 
             markov_models_parameters = self.estimate_markov_chains(df_month)
             mchain.append(markov_models_parameters)
@@ -120,7 +125,7 @@ class FirstOrderMarkovChain:
             d2 = ConditionalProbabilityTable(markov_models_parameters['transition_matrix'], [d1])
 
             mc = MarkovChain([d1, d2])
-            seq = mc.sample(len(dfsimu[dfsimu[DATE].dt.month == month]))
+            seq = mc.sample(len(dfsimu[dfsimu[self.date_column].dt.month == month]))
 
             seq_monthly.extend(seq)
 

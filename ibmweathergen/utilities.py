@@ -72,6 +72,7 @@ def variables_monthly_stats(df: pd.DataFrame, weather_variables: list)->Dict:
     
     return stats_list
 
+
 def multisite_disaggregation(simulation_dates, weather_data_df, frequency)->pd.DataFrame:
     days_multisite = list()
 

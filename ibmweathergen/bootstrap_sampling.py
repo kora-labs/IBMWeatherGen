@@ -43,17 +43,20 @@ class BootstrapSampling:
         """
 
     def __init__(self, 
-                predicted: pd.DataFrame=None, 
-                annual_prcp: pd.DataFrame=None,
-                daily_prcp: pd.DataFrame=None,
-                wet_extreme_quantile_threshold: float=None,
-                ) -> None:
+                 predicted: pd.DataFrame=None,
+                 annual_prcp: pd.DataFrame=None,
+                 daily_prcp: pd.DataFrame=None,
+                 wet_extreme_quantile_threshold: float=None,
+                 precipitation_column=PRECIPITATION,
+                 date_column=DATE
+                 ) -> None:
         
         self.predicted = predicted
         self.annual_prcp = annual_prcp
         self.daily_prcp = daily_prcp
-        self.weather_states_thresholds = {'dry': 0, 'wet': DEFAULT_DRY_WET_THRESHOLD, 'extreme': wet_extreme_quantile_threshold} 
-        
+        self.weather_states_thresholds = {'dry': 0, 'wet': DEFAULT_DRY_WET_THRESHOLD, 'extreme': wet_extreme_quantile_threshold}
+        self.precipitation_column = precipitation_column
+        self.date_column = date_column
         self.train_data = None
         self.thresh = list()
 
@@ -68,7 +71,9 @@ class BootstrapSampling:
 
         k = np.round( max(np.sqrt(len(self.annual_prcp)), 0.5*len(self.annual_prcp) ), 0) 
         
-        self.annual_prcp = self.annual_prcp.assign( distance =  np.sqrt((self.predicted['mean'].values[0] - self.annual_prcp[PRECIPITATION])**2) )
+        self.annual_prcp = self.annual_prcp.assign(distance=
+                                                   np.sqrt((self.predicted['mean'].values[0] -
+                                                            self.annual_prcp[self.precipitation_column])**2))
         self.annual_prcp.sort_values('distance', inplace=True)
         self.annual_prcp.index = self.annual_prcp.index.set_names(['year'])
         self.annual_prcp.reset_index(inplace=True)
@@ -96,8 +101,8 @@ class BootstrapSampling:
         dfs = list()
         
         for year in resampled_years:
-            ttemp=self.daily_prcp[self.daily_prcp[DATE].dt.year.isin([year])]
-            dfs.append(pd.DataFrame(ttemp.sort_values(by=DATE)))
+            ttemp=self.daily_prcp[self.daily_prcp[self.date_column].dt.year.isin([year])]
+            dfs.append(pd.DataFrame(ttemp.sort_values(by=self.date_column)))
 
         train_data = pd.concat(dfs).reset_index(drop=True)
 
@@ -118,21 +123,27 @@ class BootstrapSampling:
         self.train_data = self.train_data.assign(state = list(self.weather_states_thresholds.keys())[1][0])                                                          
         for month in range(1, 13, 1):
             
-            td = self.train_data[self.train_data[DATE].dt.month == month]
+            td = self.train_data[self.train_data[self.date_column].dt.month == month]
 
             self.thresh.append({'month': month, 
                                 'thresholds': {'dry_wet': self.weather_states_thresholds['wet'], 
-                                               'wet_extreme': np.quantile(td[PRECIPITATION], self.weather_states_thresholds['extreme'])} })
+                                               'wet_extreme': np.quantile(td[self.precipitation_column],
+                                                                          self.weather_states_thresholds['extreme'])}})
             
-            self.train_data.loc[(self.train_data[DATE].dt.month == month) 
-                            & (self.train_data[PRECIPITATION] <= self.thresh[month-1]['thresholds']['dry_wet']), STATE] = list(self.weather_states_thresholds.keys())[0][0]
-            self.train_data.loc[(self.train_data[DATE].dt.month == month) 
-                            & (self.train_data[PRECIPITATION] >= self.thresh[month-1]['thresholds']['wet_extreme']), STATE] = list(self.weather_states_thresholds.keys())[2][0] 
+            self.train_data.loc[(self.train_data[self.date_column].dt.month == month)
+                            & (self.train_data[self.precipitation_column] <=
+                               self.thresh[month-1]['thresholds']['dry_wet']), STATE] = \
+                list(self.weather_states_thresholds.keys())[0][0]
+            self.train_data.loc[(self.train_data[self.date_column].dt.month == month)
+                            & (self.train_data[self.precipitation_column] >=
+                               self.thresh[month-1]['thresholds']['wet_extreme']), STATE] = \
+                list(self.weather_states_thresholds.keys())[2][0]
             
         self.train_data.reset_index(drop=True, inplace=True)
-        self.train_data[WDAY] = self.train_data[DATE].dt.dayofyear
+        self.train_data[WDAY] = self.train_data[self.date_column].dt.dayofyear
         
-        columns_to_prev = list(filter(lambda item: item not in [DATE, WDAY, T_MIN, T_MAX] , self.train_data.columns.to_list()))
+        columns_to_prev = list(filter(lambda item: item not in [self.date_column, WDAY, T_MIN, T_MAX],
+                                      self.train_data.columns.to_list()))
         for name in columns_to_prev:
             self.train_data[f'{name}_prev'] = self.train_data[f'{name}'].shift(1)
 

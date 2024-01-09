@@ -47,15 +47,19 @@ class LagOne:
 
     """
     
-    def __init__(self, training_data: pd.DataFrame, 
-                dfsimu: pd.DataFrame, 
-                weather_variables: list, 
-                weather_mean: list) -> None:
+    def __init__(self,
+                 training_data: pd.DataFrame,
+                 dfsimu: pd.DataFrame,
+                 weather_variables: list,
+                 weather_mean: list,
+                 date_column=DATE,
+                 ) -> None:
         
         self.training_data = training_data
         self.dfsimu = dfsimu 
         self.weather_vars = weather_variables #contains the 'key_variable' (precipitation)
-        self.weather_mean = weather_mean 
+        self.weather_mean = weather_mean
+        self.date_column = date_column
 
     def search_first(self, date: pd.Timestamp, state: str) -> int:
 
@@ -119,7 +123,7 @@ class LagOne:
             current = self.training_data[ (self.training_data[STATE] == state) ]
 
         if len(current) == 0:
-            current = self.training_data[ (self.training_data[DATE] == date) ]
+            current = self.training_data[ (self.training_data[self.date_column] == date)]
 
         #----
         k = np.round( np.sqrt(len(current)) )
@@ -170,9 +174,9 @@ class LagOne:
                 
             if (i == 0) and (row[STATE] not in self.training_data[(self.training_data[WDAY] == 1)][STATE].unique()):    
                 
-                window = self.search_first(date=row[DATE], state=row[STATE])
+                window = self.search_first(date=row[self.date_column], state=row[STATE])
                 
-                days_window = waterday_range(day=row[DATE], window=window)
+                days_window = waterday_range(day=row[self.date_column], window=window)
                 current = self.training_data[ (self.training_data[WDAY].isin(days_window)) & (self.training_data[STATE] == row[STATE])]
                 
                 std = choices(population = current.index, k=1)[0]
@@ -183,16 +187,16 @@ class LagOne:
                                                                 (self.training_data[WDAY] == row[WDAY]) ].index, k=1)[0]
 
             else:
-                month = row[DATE].month
+                month = row[self.date_column].month
 
-                std, dates_taken = self.get_dates(row[DATE], month,
+                std, dates_taken = self.get_dates(row[self.date_column], month,
                                     row[STATE],
                                     row[STATE_PREV],
                                     pd.Series(self.dfsimu.loc[i-1][self.weather_mean]),
                                     dates_taken
                                 )
             
-            self.dfsimu.at[i, SAMPLE_DATE] = self.training_data.at[std, DATE]
+            self.dfsimu.at[i, SAMPLE_DATE] = self.training_data.at[std, self.date_column]
             for weather in self.weather_vars:
                 self.dfsimu.at[i, f'{weather}'] = self.training_data.at[std, f'{weather}']
 
