@@ -44,7 +44,8 @@ def waterday_range(day: pd.Timedelta, window: int)->List[int]:
     
     return rng 
 
-def variables_monthly_stats(df: pd.DataFrame, weather_variables: list)->Dict: 
+
+def variables_monthly_stats(df: pd.DataFrame, weather_variables: list) -> Dict:
     
     """ Compute the monthly mean and the standard deviation for each weather variable.
         
@@ -73,22 +74,23 @@ def variables_monthly_stats(df: pd.DataFrame, weather_variables: list)->Dict:
     return stats_list
 
 
-def multisite_disaggregation(simulation_dates, weather_data_df, frequency)->pd.DataFrame:
+def multisite_disaggregation(simulation_dates, weather_data_df, frequency,
+                             date_column=DATE) -> pd.DataFrame:
     days_multisite = list()
 
     if frequency != 0:
         column_name = 'date_'
     else:
-        column_name = DATE
+        column_name = date_column
     
     for i in range(len(simulation_dates)):
         tmp = weather_data_df[weather_data_df[column_name] == simulation_dates[SAMPLE_DATE][i]].rename(
-            columns={DATE:SAMPLE_DATE}).assign( Date = simulation_dates[DATE][i] )
+            columns={date_column: SAMPLE_DATE}).assign(Date=simulation_dates[date_column][i])
 
         if frequency:
-            tmp[DATE] = tmp[DATE].astype('str') +' '+ tmp[SAMPLE_DATE].dt.time.astype('str')
+            tmp[date_column] = tmp[date_column].astype('str') + ' ' + tmp[SAMPLE_DATE].dt.time.astype('str')
         
-        tmp[DATE] = tmp[DATE].astype('datetime64[ns]') 
+        tmp[date_column] = tmp[date_column].astype('datetime64[ns]')
         days_multisite.append(tmp)
 
     df = pd.concat(days_multisite).reset_index(drop=True)
@@ -96,14 +98,15 @@ def multisite_disaggregation(simulation_dates, weather_data_df, frequency)->pd.D
     return df
 
 
-#TODO: ADJUST RANGE OF PREDICTED
-def adjust_annual_precipitation(df, predicted) -> pd.DataFrame:
+def adjust_annual_precipitation(df, predicted,
+                                precipitation_column=PRECIPITATION,
+                                date_column=DATE) -> pd.DataFrame:
 
-    df_annual = df.groupby(df[DATE].dt.date)[[PRECIPITATION]].mean().reset_index()
+    df_annual = df.groupby(df[date_column].dt.date)[[precipitation_column]].mean().reset_index()
     
-    df_annual[DATE] = pd.to_datetime(df_annual[DATE])
+    df_annual[date_column] = pd.to_datetime(df_annual[date_column])
 
-    df_annual = df_annual.groupby(df_annual[DATE].dt.year)[PRECIPITATION].sum().values[0]
+    df_annual = df_annual.groupby(df_annual[date_column].dt.year)[precipitation_column].sum().values[0]
 
     if (df_annual < predicted['mean_ci_lower'].values[0]) or (df_annual > predicted['mean_ci_upper'].values[0]):
 
@@ -116,8 +119,7 @@ def adjust_annual_precipitation(df, predicted) -> pd.DataFrame:
         final_prcp = truncnorm.rvs(a, b, loc=my_mean, scale=my_std, size=1)[0]
         
         RATIO = final_prcp/df_annual
-        #df = df.assign( precipitation_calibrated = df[PRECIPITATION]*RATIO)
-        df[PRECIPITATION] = df[PRECIPITATION]*RATIO
+        df[precipitation_column] = df[precipitation_column] * RATIO
     
     return df
 

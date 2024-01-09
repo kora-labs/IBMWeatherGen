@@ -256,10 +256,12 @@ class IBMWeatherGen:
                 df_simulation, thresh_markov_chain = prcp_occurence.simulate_state_sequence()
                 
                 single_timeseries = LagOne(training_data, df_simulation, self.weather_variables,
-                                           self.weather_variables_mean)
+                                           self.weather_variables_mean,
+                                           date_column=self.date_column)
                 df_simulation = single_timeseries.get_series()
 
-                df_simulation = multisite_disaggregation(df_simulation, self.raw_data, self.frequency)
+                df_simulation = multisite_disaggregation(df_simulation, self.raw_data, self.frequency,
+                                                         date_column=self.date_column)
 
                 df_simulation = adjust_annual_precipitation(df_simulation, predicted)
                 
