@@ -264,6 +264,7 @@ class IBMWeatherGen:
                                                          date_column=self.date_column)
 
                 df_simulation = adjust_annual_precipitation(df_simulation, predicted,
+                                                            precipitation_column=self.precipitation_column,
                                                             date_column=self.date_column)
                 
                 df_simulation = df_simulation.assign(n_simu=num_simulation+1)

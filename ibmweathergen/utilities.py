@@ -86,7 +86,8 @@ def multisite_disaggregation(simulation_dates, weather_data_df, frequency,
     
     for i in range(len(simulation_dates)):
         tmp = weather_data_df[weather_data_df[column_name] == simulation_dates[SAMPLE_DATE][i]].rename(
-            columns={date_column: SAMPLE_DATE}).assign(Date=simulation_dates[date_column][i])
+            columns={date_column: SAMPLE_DATE})
+        tmp[date_column] = simulation_dates[date_column][i]
 
         if frequency:
             tmp[date_column] = tmp[date_column].astype('str') + ' ' + tmp[SAMPLE_DATE].dt.time.astype('str')
