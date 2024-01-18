@@ -78,6 +78,7 @@ class IBMWeatherGen:
                  date_column=DATE,
                  raw_data=None):
 
+        self.best_annual_forecaster = None
         self.number_of_simulations = nsimulations
         self.file_in_path = file_in_path
         self.simulation_year_list = years
@@ -91,7 +92,7 @@ class IBMWeatherGen:
         self.weather_variables = list()
 
         self.wet_extreme_quantile_threshold = wet_extreme_quantile_threshold
-        self.randomly_clip=False
+        self.randomly_clip = False
         
         self.weather_variables_mean = list() 
 
@@ -157,10 +158,9 @@ class IBMWeatherGen:
             self.daily_data = self.generate_daily(self.frequency,self.raw_data)
 
         return self.daily_data.groupby(self.daily_data[self.date_column])[self.weather_variables].mean().reset_index()
-    
-    
+
+
     def compute_annual_prcp(self)->pd.DataFrame:
-        
         self.daily_data = self.compute_daily_variables()
 
         self.annual_data = self.daily_data.groupby(self.daily_data[self.date_column].dt.year)[
@@ -172,8 +172,6 @@ class IBMWeatherGen:
         return self.annual_data
     
     def generate_forecasted_values(self):
-        
-        self.annual_data = self.compute_annual_prcp()
         list_autoArimaFourierFeatures = []
         comb_list = []
 
@@ -217,33 +215,27 @@ class IBMWeatherGen:
         return prediction
 
     def generate_weather_series(self):
-
         simulations = list()
+        self.annual_data = self.compute_annual_prcp()
+        stp = self.annual_data.values.std() * 0.8
+
         for simulation_year in self.simulation_year_list:
+            if str(simulation_year) in self.annual_data.index:
+                predicted = {}
+                print('Predicting the range for the year.')
+                predicted['mean'] = self.annual_data[str(simulation_year)]
+                predicted['mean_ci_lower'] = predicted['mean'] - stp
+                predicted['mean_ci_upper'] = predicted['mean'] + stp
+                predicted = pd.DataFrame(index=[str(simulation_year)], data=predicted)
+            else:
+                print('ARIMA forecast being done...This might take a while.')
+                if self.best_annual_forecaster is None:
+                    self.best_annual_forecaster = self.generate_forecasted_values()
+                predicted = self.best_annual_forecaster.predict_year(str(simulation_year))
 
             for num_simulation in range(self.number_of_simulations):
-                
                 print(f'\nYear: [[{simulation_year}]] | Simulation: [[{num_simulation+1}/{self.number_of_simulations}]]')
-                self.annual_data = self.compute_annual_prcp()
 
-                if str(simulation_year) in self.annual_data.index:
-                    predicted = {}
-                    stp = self.annual_data.values.std()*0.8
-                    print('Predicting the range for the year.')
-                    predicted['mean'] = self.annual_data[str(simulation_year)]
-                    predicted['mean_ci_lower'] = predicted['mean'] - stp
-                    predicted['mean_ci_upper'] = predicted['mean'] + stp
-                    predicted = pd.DataFrame(index=[str(simulation_year)], data=predicted)
-                    #print(predicted)
-
-                else:
-                    print('ARIMA forecast being done...This might take a while.')
-                    self.best_annual_forecaster = self.generate_forecasted_values()
-                    predicted = self.best_annual_forecaster.predict_year(str(simulation_year))
-                    # print(type(predicted))
-                    # print(predicted.index)
-                    # print(predicted)
-                
                 bootstrap = BootstrapSampling(predicted, self.annual_data.to_frame(), self.daily_data,
                                               self.wet_extreme_quantile_threshold,
                                               precipitation_column=self.precipitation_column,
@@ -256,16 +248,12 @@ class IBMWeatherGen:
                 df_simulation, thresh_markov_chain = prcp_occurence.simulate_state_sequence()
                 
                 single_timeseries = LagOne(training_data, df_simulation, self.weather_variables,
-                                           self.weather_variables_mean,
-                                           date_column=self.date_column)
+                                           self.weather_variables_mean)
                 df_simulation = single_timeseries.get_series()
 
-                df_simulation = multisite_disaggregation(df_simulation, self.raw_data, self.frequency,
-                                                         date_column=self.date_column)
+                df_simulation = multisite_disaggregation(df_simulation, self.raw_data, self.frequency)
 
-                df_simulation = adjust_annual_precipitation(df_simulation, predicted,
-                                                            precipitation_column=self.precipitation_column,
-                                                            date_column=self.date_column)
+                df_simulation = adjust_annual_precipitation(df_simulation, predicted)
                 
                 df_simulation = df_simulation.assign(n_simu=num_simulation+1)
                 simulations.append(df_simulation.drop([SAMPLE_DATE], axis=1).set_index(self.date_column)) #for tests, consider the 'sample_date'
