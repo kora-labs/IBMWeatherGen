@@ -260,7 +260,7 @@ class IBMWeatherGen:
                                                             date_column=self.date_column)
                 
                 df_simulation = df_simulation.assign(n_simu=num_simulation+1)
-                df_simulation = df_simulation.drop([SAMPLE_DATE], axis=1).set_index(self.date_column)
+                df_simulation = df_simulation.drop([SAMPLE_DATE, 'temperature'], axis=1).set_index(self.date_column)
                 simulations = simulations + [df_simulation]
 
         dfnl = pd.concat(simulations)
