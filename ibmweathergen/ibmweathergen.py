@@ -159,7 +159,6 @@ class IBMWeatherGen:
 
         return self.daily_data.groupby(self.daily_data[self.date_column])[self.weather_variables].mean().reset_index()
 
-
     def compute_annual_prcp(self)->pd.DataFrame:
         self.daily_data = self.compute_daily_variables()
 
@@ -187,18 +186,16 @@ class IBMWeatherGen:
         return Utils.model_selection(list_models, self.annual_data) 
     
     def adjust_prediction(self, prediction) -> pd.DataFrame:
-
         year = prediction['mean_ci_lower'].index.values[0]
-        
+        stp = self.annual_data.values.std() * 0.8
+
         if prediction['mean_ci_lower'].values[0] < 0:
-            stp = self.annual_data.values.std()*0.8
             prediction['mean_ci_lower'] = self.annual_data[str(year)]
             prediction['mean'] = prediction['mean_ci_lower'] + stp
             prediction['mean_ci_upper'] = prediction['mean_ci_lower'] + 2*stp
 
         else:
             vle = ((prediction['mean'] - self.annual_data[str(year)])/self.annual_data[str(year)]).values[0]
-            stp = self.annual_data.values.std()*0.8
             
             if vle < -0.05: #annual > predicted_mean
                 diff = prediction['mean'] - prediction['mean_ci_lower'] 
@@ -215,7 +212,7 @@ class IBMWeatherGen:
         return prediction
 
     def generate_weather_series(self):
-        simulations = list()
+        simulations = []
         self.annual_data = self.compute_annual_prcp()
         stp = self.annual_data.values.std() * 0.8
 
@@ -248,15 +245,19 @@ class IBMWeatherGen:
                 df_simulation, thresh_markov_chain = prcp_occurence.simulate_state_sequence()
                 
                 single_timeseries = LagOne(training_data, df_simulation, self.weather_variables,
-                                           self.weather_variables_mean)
+                                           self.weather_variables_mean, date_column=self.date_column)
                 df_simulation = single_timeseries.get_series()
 
-                df_simulation = multisite_disaggregation(df_simulation, self.raw_data, self.frequency)
+                df_simulation = multisite_disaggregation(df_simulation, self.raw_data, self.frequency,
+                                                         date_column=self.date_column)
 
-                df_simulation = adjust_annual_precipitation(df_simulation, predicted)
+                df_simulation = adjust_annual_precipitation(df_simulation, predicted,
+                                                            precipitation_column=self.precipitation_column,
+                                                            date_column=self.date_column)
                 
                 df_simulation = df_simulation.assign(n_simu=num_simulation+1)
-                simulations.append(df_simulation.drop([SAMPLE_DATE], axis=1).set_index(self.date_column)) #for tests, consider the 'sample_date'
+                df_simulation = df_simulation.drop([SAMPLE_DATE], axis=1).set_index(self.date_column)
+                simulations = simulations + [df_simulation]
 
         dfnl = pd.concat(simulations)
 

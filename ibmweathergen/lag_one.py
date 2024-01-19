@@ -132,7 +132,7 @@ class LagOne:
 
         dstc = 0
         for weather in self.weather_mean:
-            w = ( (current[f'{weather}_prev'] - stats[month-1][f'{weather}_mean']) /stats[month-1][f'{weather}_sd'] )
+            w = ( (current[f'{weather}_prev'] - stats[month-1][f'{weather}_mean']) /stats[month-1][f'{weather}_std'] )
             dstc += abs(w)*(prev[f'{weather}'] - current[f'{weather}_prev'])**2
 
         current = current.assign( distance = np.sqrt( dstc ) )

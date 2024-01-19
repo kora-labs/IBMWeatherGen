@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from pomegranate import MarkovChain, DiscreteDistribution, ConditionalProbabilityTable
 from typing import Dict, Any, Optional
+from collections import Counter
 
 from ibmweathergen.constants_ import DATE, PRECIPITATION, SAMPLE_DATE, STATE, STATE_PREV, WDAY
 
@@ -92,14 +93,10 @@ class FirstOrderMarkovChain:
 
         # marginal probs
         states = list(df_month['state'])
-        mc_prob = MarkovChain.from_samples(states)
-        self.transition_prob = mc_prob.distributions[0].parameters
+        self.transition_prob = [{char: count / len(states) for char, count in Counter(states).items()}]
 
+        self.transition_matrix = calculate_consecutive_state_fractions(states)
         # transition matrix
-        states.append(states[0:])
-        mc_tr = MarkovChain.from_samples(states)
-        self.transition_matrix = [[item[0], item[1], float(item[2])] for item in mc_tr.distributions[1].parameters[0]]
-
         return {'weather_probs': self.transition_prob, 'transition_matrix': self.transition_matrix}
 
     def simulate_state_sequence(self) -> Any:
@@ -132,4 +129,30 @@ class FirstOrderMarkovChain:
         dfsimu[STATE] = seq_monthly
         dfsimu[STATE_PREV] = dfsimu[STATE].shift(1)
 
-        return dfsimu, mchain 
+        return dfsimu, mchain
+
+
+def calculate_consecutive_state_fractions(states):
+    # Convert to pandas series for vectorized operations
+    states_series = pd.Series(states)
+
+    # Create a shifted series
+    shifted_series = states_series.shift(-1)
+
+    # Create a DataFrame from the original and shifted series
+    pairs_df = pd.DataFrame({'current': states_series[:-1], 'next': shifted_series[:-1]})
+
+    # Count occurrences of each pair
+    pair_counts = pairs_df.groupby(['current', 'next']).size().unstack(fill_value=0)
+
+    # Calculate fractions
+    fractions_matrix = pair_counts.div(pair_counts.sum(axis=1), axis=0)
+    matrix_2d = fractions_matrix.reset_index().melt(id_vars='current', var_name='pred', value_name='value')
+    # Sort by 'current' in alphabetical order
+    matrix_2d_sorted = matrix_2d.sort_values(by='current')
+    matrix_2d_sorted['value'] = matrix_2d_sorted['value'].astype(float)
+
+    # Convert DataFrame to list of lists
+    list_of_lists = matrix_2d_sorted.values.tolist()
+
+    return list_of_lists
