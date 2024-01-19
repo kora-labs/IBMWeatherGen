@@ -76,6 +76,8 @@ class IBMWeatherGen:
                  nsimulations=1,
                  precipitation_column=PRECIPITATION,
                  date_column=DATE,
+                 t_min_column=T_MIN,
+                 t_max_column=T_MAX,
                  raw_data=None):
 
         self.best_annual_forecaster = None
@@ -84,7 +86,8 @@ class IBMWeatherGen:
         self.simulation_year_list = years
         self.precipitation_column = precipitation_column
         self.date_column = date_column
-
+        self.t_min_column = t_min_column
+        self.t_max_column = t_max_column
         self.raw_data = raw_data
         self.daily_data = None 
         self.annual_data = None
@@ -132,10 +135,14 @@ class IBMWeatherGen:
 
         self.read_data()
 
-        if (T_MIN and T_MAX in self.raw_data.columns):
-            self.raw_data = self.raw_data.assign(temperature = (self.raw_data[T_MIN] + self.raw_data[T_MAX])/2)
-            self.weather_variables_mean = [element for element in list(self.raw_data.columns)
-                                           if element not in [self.date_column, LONGITUDE, LATITUDE, T_MIN, T_MAX]]
+        if (self.t_min_column and self.t_max_column in self.raw_data.columns):
+            self.raw_data = self.raw_data.assign(temperature=
+                                                 (self.raw_data[self.t_min_column] +
+                                                  self.raw_data[self.t_max_column])/2)
+
+        self.weather_variables_mean = [element for element in list(self.raw_data.columns)
+                                       if element not in [self.date_column, LONGITUDE, LATITUDE,
+                                                          self.t_min_column, self.t_max_column]]
         
         self.weather_variables = [weather_var for weather_var in self.raw_data.columns
                                   if weather_var not in [self.date_column, LONGITUDE, LATITUDE]]
@@ -152,14 +159,13 @@ class IBMWeatherGen:
                                               (self.raw_data.Latitude >= selected_bbox[2]) &
                                               (self.raw_data.Latitude <= selected_bbox[3])]
             
-            self.daily_data = self.generate_daily(self.frequency,self.sub_raw_data)
-            
+            self.daily_data = self.generate_daily(self.frequency, self.sub_raw_data)
         else:
-            self.daily_data = self.generate_daily(self.frequency,self.raw_data)
+            self.daily_data = self.generate_daily(self.frequency, self.raw_data)
 
         return self.daily_data.groupby(self.daily_data[self.date_column])[self.weather_variables].mean().reset_index()
 
-    def compute_annual_prcp(self)->pd.DataFrame:
+    def compute_annual_prcp(self) -> pd.DataFrame:
         self.daily_data = self.compute_daily_variables()
 
         self.annual_data = self.daily_data.groupby(self.daily_data[self.date_column].dt.year)[
@@ -172,8 +178,6 @@ class IBMWeatherGen:
     
     def generate_forecasted_values(self):
         list_autoArimaFourierFeatures = []
-        comb_list = []
-
         l_m = list(range(2, len(self.annual_data.index), 3))
         l_m = sample(list(l_m), k=4)
         comb_list = [list(itertools.product([m], list(range(1, (int(m/2)+1))))) for m in list(l_m)]
