@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from random import choices
 from ibmweathergen.utilities import waterday_range, variables_monthly_stats
-from ibmweathergen.constants_ import DATE, SAMPLE_DATE, STATE, STATE_PREV, WDAY
+from ibmweathergen.constants import DATE, SAMPLE_DATE, STATE, STATE_PREV, WDAY
 
 
 class LagOne:

@@ -11,7 +11,7 @@ from scipy.stats import truncnorm
 from math import log
 from typing import List, Dict
 
-from ibmweathergen.constants_ import DATE, PRECIPITATION, SAMPLE_DATE
+from ibmweathergen.constants import DATE, PRECIPITATION, SAMPLE_DATE
 
 
 def waterday_range(day: pd.Timedelta, window: int)->List[int]: 

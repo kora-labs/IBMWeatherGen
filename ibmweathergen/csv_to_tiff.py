@@ -4,7 +4,7 @@ import numpy as np
 import os
 import pandas as pd
 from osgeo import gdal
-from ibmweathergen.constants_ import PRECIPITATION, LATITUDE, LONGITUDE, DATE, NO_DATA_VALUE
+from ibmweathergen.constants import PRECIPITATION, LATITUDE, LONGITUDE, DATE, NO_DATA_VALUE
 
 
 def write_geotiff(fileName, raster, swne, noDataValue = None, dtype = None):

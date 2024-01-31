@@ -12,7 +12,7 @@ from ibmweathergen.markov_chain import FirstOrderMarkovChain
 from ibmweathergen.lag_one import LagOne
 from ibmweathergen.annual_forecaster import autoArimaFourierFeatures, Utils
 from ibmweathergen.utilities import multisite_disaggregation, adjust_annual_precipitation
-from ibmweathergen.constants_ import PRECIPITATION, DATE, LONGITUDE, LATITUDE, SAMPLE_DATE, T_MIN, T_MAX
+from ibmweathergen.constants import PRECIPITATION, DATE, LONGITUDE, LATITUDE, SAMPLE_DATE, T_MIN, T_MAX
 
 
 class IBMWeatherGen:

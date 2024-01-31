@@ -4,7 +4,7 @@ from pomegranate import MarkovChain, DiscreteDistribution, ConditionalProbabilit
 from typing import Dict, Any, Optional
 from collections import Counter
 
-from ibmweathergen.constants_ import DATE, PRECIPITATION, SAMPLE_DATE, STATE, STATE_PREV, WDAY
+from ibmweathergen.constants import DATE, PRECIPITATION, SAMPLE_DATE, STATE, STATE_PREV, WDAY
 
 MC_PER_YEAR = 12
 
