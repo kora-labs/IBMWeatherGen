@@ -249,8 +249,8 @@ class IBMWeatherGen:
                                            self.weather_variables_mean, date_column=self.date_column)
                 df_simulation = single_timeseries.get_series()
 
-                #df_simulation = multisite_disaggregation(df_simulation, self.raw_data, self.frequency,
-                #                                         date_column=self.date_column)
+                df_simulation = multisite_disaggregation(df_simulation, self.raw_data, self.frequency,
+                                                         date_column=self.date_column)
 
                 df_simulation = adjust_annual_precipitation(df_simulation, predicted,
                                                             precipitation_column=self.precipitation_column,
