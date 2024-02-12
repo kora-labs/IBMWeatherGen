@@ -221,18 +221,12 @@ class IBMWeatherGen:
         stp = self.annual_data.values.std() * 0.8
 
         for simulation_year in self.simulation_year_list:
-            if str(simulation_year) in self.annual_data.index:
-                predicted = {}
-                print('Predicting the range for the year.')
-                predicted['mean'] = self.annual_data[str(simulation_year)]
-                predicted['mean_ci_lower'] = predicted['mean'] - stp
-                predicted['mean_ci_upper'] = predicted['mean'] + stp
-                predicted = pd.DataFrame(index=[str(simulation_year)], data=predicted)
-            else:
-                print('ARIMA forecast being done...This might take a while.')
-                if self.best_annual_forecaster is None:
-                    self.best_annual_forecaster = self.generate_forecasted_values()
-                predicted = self.best_annual_forecaster.predict_year(str(simulation_year))
+            predicted = {}
+            print('Predicting the range for the year.')
+            predicted['mean'] = self.annual_data[str(simulation_year)]
+            predicted['mean_ci_lower'] = predicted['mean'] - stp
+            predicted['mean_ci_upper'] = predicted['mean'] + stp
+            predicted = pd.DataFrame(index=[str(simulation_year)], data=predicted)
 
             for num_simulation in range(self.number_of_simulations):
                 print(f'\nYear: [[{simulation_year}]] | Simulation: [[{num_simulation+1}/{self.number_of_simulations}]]')
