@@ -223,7 +223,10 @@ class IBMWeatherGen:
         for simulation_year in self.simulation_year_list:
             predicted = {}
             print('Predicting the range for the year.')
-            predicted['mean'] = self.annual_data[str(simulation_year)]
+            if str(simulation_year) in self.annual_data.index:
+                predicted['mean'] = self.annual_data[str(simulation_year)]
+            else:
+                predicted['mean'] = self.annual_data.mean()
             predicted['mean_ci_lower'] = predicted['mean'] - stp
             predicted['mean_ci_upper'] = predicted['mean'] + stp
             predicted = pd.DataFrame(index=[str(simulation_year)], data=predicted)
